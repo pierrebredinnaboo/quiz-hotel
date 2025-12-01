@@ -10,7 +10,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-001" });
 
 // Import hotel groups data
-const { hotelGroups } = require('../client/src/data/brandsData.js');
+const { hotelGroups } = require('./brandsData.js');
 
 const app = express();
 const server = http.createServer(app);
