@@ -41,7 +41,7 @@ const games = {}; // { roomCode: { hostId, players, gameState, questions, curren
 const globalScores = []; // Legacy
 const dailySoloScores = [];
 const soloScores = [];
-const multiplayerScores = [];
+const multiplayerGames = []; // Array of game sessions with metadata
 
 // Admin password
 const ADMIN_PASSWORD = '12345';
@@ -535,7 +535,8 @@ io.on('connection', (socket) => {
         if (leaderboardType === 'solo') {
             soloScores.length = 0;
         } else if (leaderboardType === 'multiplayer') {
-            multiplayerScores.length = 0;
+            multiplayerGames.length = 0;
+            console.log('🗑️ Cleared multiplayer game history');
         } else if (leaderboardType === 'daily') {
             dailySoloScores.length = 0;
         }
@@ -564,10 +565,9 @@ io.on('connection', (socket) => {
         callback(top10);
     });
 
-    // Get multiplayer leaderboard
+    // Get multiplayer leaderboard (returns game sessions)
     socket.on('get_multiplayer_leaderboard', (callback) => {
-        const top10 = [...multiplayerScores].sort((a, b) => b.score - a.score).slice(0, 10);
-        callback(top10);
+        callback(multiplayerGames);
     });
 
     // Get global leaderboard (legacy - returns solo)
@@ -654,7 +654,18 @@ io.on('connection', (socket) => {
         room.players.push(player);
         socket.join(roomCode);
 
+        // Notify host
         io.to(room.hostId).emit('player_joined', player);
+
+        // Send lobby update to all players in the room
+        io.to(roomCode).emit('lobby_update', {
+            players: room.players.map(p => ({
+                nickname: p.nickname,
+                avatar: p.avatar,
+                isHost: p.id === room.hostId
+            }))
+        });
+
         callback({ success: true });
         console.log(`✅ ${nickname} joined room ${roomCode} with avatar ${avatar}`);
     });
@@ -887,16 +898,20 @@ io.on('connection', (socket) => {
             io.to(roomCode).emit('game_over', { leaderboard: finalLeaderboard });
 
             if (room.players.length > 1) {
-                finalLeaderboard.forEach(p => {
-                    if (p.score > 0) {
-                        multiplayerScores.push({
-                            nickname: p.nickname,
-                            score: p.score,
-                            avatar: p.avatar || '👤',
-                            date: new Date()
-                        });
-                    }
-                });
+                // Save the entire game session
+                const gameSession = {
+                    id: `game_${Date.now()}`,
+                    date: new Date(),
+                    players: finalLeaderboard.map(p => ({
+                        nickname: p.nickname,
+                        score: p.score,
+                        avatar: p.avatar || '👤'
+                    })),
+                    winner: finalLeaderboard[0].nickname,
+                    questionCount: room.questions.length
+                };
+                multiplayerGames.push(gameSession);
+                console.log(`📊 Saved multiplayer game session: ${gameSession.id}`);
             }
             room.gameState = 'FINISHED';
         } else {

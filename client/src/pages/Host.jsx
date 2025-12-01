@@ -5,7 +5,7 @@ import { Input } from '../components/ui/Input';
 import { HomeButton } from '../components/ui/HomeButton';
 import { AvatarSelector } from '../components/ui/AvatarSelector';
 import { highlightBrands } from '../utils/highlightBrands';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { hotelGroups } from '../data/brandsData';
 
 // Simple Error Boundary Component
@@ -566,42 +566,44 @@ export default function Host() {
                                 </div>
                             )}
                             <h2 className="text-6xl font-bold mb-12">Leaderboard</h2>
-                            <div className="space-y-4 max-w-4xl mx-auto mb-12 w-full px-8">
-                                <AnimatePresence>
-                                    {leaderboard.map((p, i) => (
-                                        <motion.div
-                                            layout
-                                            key={p.id}
-                                            initial={{ opacity: 0, y: 20 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, scale: 0.5 }}
-                                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                                            className={`p-6 rounded-2xl flex justify-between items-center text-3xl font-bold shadow-lg ${i === 0 ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-white'}`}
-                                        >
-                                            <div className="flex items-center gap-8">
-                                                <span className="text-4xl w-16 text-left">{i === 0 ? '👑' : `#${i + 1}`}</span>
-                                                <div className="flex items-center gap-4">
-                                                    <span className="text-4xl">{p.avatar || '👤'}</span>
-                                                    <span className="truncate max-w-[300px] text-left">{p.nickname}</span>
+                            <LayoutGroup>
+                                <div className="space-y-4 max-w-4xl mx-auto mb-12 w-full px-8">
+                                    <AnimatePresence>
+                                        {leaderboard.map((p, i) => (
+                                            <motion.div
+                                                layout
+                                                key={p.id}
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, scale: 0.5 }}
+                                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                                className={`p-6 rounded-2xl flex justify-between items-center text-3xl font-bold shadow-lg ${i === 0 ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-white'}`}
+                                            >
+                                                <div className="flex items-center gap-8">
+                                                    <span className="text-4xl w-16 text-left">{i === 0 ? '👑' : `#${i + 1}`}</span>
+                                                    <div className="flex items-center gap-4">
+                                                        <span className="text-4xl">{p.avatar || '👤'}</span>
+                                                        <span className="truncate max-w-[300px] text-left">{p.nickname}</span>
+                                                    </div>
                                                 </div>
-                                            </div>
 
-                                            <div className="flex items-center gap-8">
-                                                {p.lastRoundPoints > 0 && (
-                                                    <motion.span
-                                                        initial={{ opacity: 0, x: -20 }}
-                                                        animate={{ opacity: 1, x: 0 }}
-                                                        className="text-green-400 text-2xl"
-                                                    >
-                                                        +{p.lastRoundPoints}
-                                                    </motion.span>
-                                                )}
-                                                <span className="w-32 text-right">{p.score} pts</span>
-                                            </div>
-                                        </motion.div>
-                                    ))}
-                                </AnimatePresence>
-                            </div>
+                                                <div className="flex items-center gap-8">
+                                                    {p.lastRoundPoints > 0 && (
+                                                        <motion.span
+                                                            initial={{ opacity: 0, x: -20 }}
+                                                            animate={{ opacity: 1, x: 0 }}
+                                                            className="text-green-400 text-2xl"
+                                                        >
+                                                            +{p.lastRoundPoints}
+                                                        </motion.span>
+                                                    )}
+                                                    <span className="w-32 text-right">{p.score} pts</span>
+                                                </div>
+                                            </motion.div>
+                                        ))}
+                                    </AnimatePresence>
+                                </div>
+                            </LayoutGroup>
                             <div className="text-2xl text-gray-400 animate-pulse">
                                 Next question in 3 seconds...
                             </div>

@@ -19,6 +19,7 @@ export default function Player() {
     const [lastResult, setLastResult] = useState(null);
     const [score, setScore] = useState(0);
     const [selectedAnswers, setSelectedAnswers] = useState([]); // For multi-select
+    const [lobbyPlayers, setLobbyPlayers] = useState([]); // Players in lobby
 
     // Auto-fill room code from URL parameter
     useEffect(() => {
@@ -31,6 +32,10 @@ export default function Player() {
 
     useEffect(() => {
         if (!socket) return;
+
+        socket.on('lobby_update', ({ players }) => {
+            setLobbyPlayers(players);
+        });
 
         socket.on('game_started', () => {
             setGameState('WAITING'); // Wait for question
@@ -54,6 +59,7 @@ export default function Player() {
         });
 
         return () => {
+            socket.off('lobby_update');
             socket.off('game_started');
             socket.off('new_question');
             socket.off('question_result');
@@ -147,12 +153,12 @@ export default function Player() {
     return (
         <div className="min-h-screen bg-gray-900 text-white p-4 flex flex-col overflow-hidden relative">
             <HomeButton />
-            <div className="flex justify-between items-center mb-6 pl-12">
-                <div className="flex items-center gap-3">
-                    <span className="text-3xl">{avatar}</span>
-                    <div className="font-bold text-xl">{nickname}</div>
+            <div className="flex justify-between items-center mb-4 pl-12">
+                <div className="flex items-center gap-2">
+                    <span className="text-2xl">{avatar}</span>
+                    <div className="font-bold text-base">{nickname}</div>
                 </div>
-                <div className="bg-marriott px-4 py-2 rounded-full text-lg font-bold shadow-lg">{score} pts</div>
+                <div className="bg-marriott px-3 py-1 rounded-full text-sm font-bold shadow-lg">{score} pts</div>
             </div>
 
             <div className="flex-1 flex flex-col justify-center relative">
@@ -165,10 +171,39 @@ export default function Player() {
                             exit={{ opacity: 0 }}
                             className="text-center flex flex-col items-center gap-6"
                         >
-                            <div className="w-16 h-16 border-4 border-marriott border-t-transparent rounded-full animate-spin" />
-                            <div className="text-3xl font-bold text-gray-400 animate-pulse">
-                                {lastResult ? "Waiting for next question..." : "Get Ready!"}
-                            </div>
+                            {lobbyPlayers.length > 0 ? (
+                                // Lobby view
+                                <div className="w-full max-w-2xl space-y-6">
+                                    <h2 className="text-xl font-bold text-marriott">Lobby</h2>
+                                    <div className="bg-gray-800 rounded-xl p-4 space-y-2">
+                                        {lobbyPlayers.map((player, index) => (
+                                            <div
+                                                key={index}
+                                                className="flex items-center gap-3 bg-gray-700 rounded-lg p-3"
+                                            >
+                                                <span className="text-2xl">{player.avatar}</span>
+                                                <span className="text-base font-bold flex-1">{player.nickname}</span>
+                                                {player.isHost && (
+                                                    <span className="bg-marriott px-2 py-0.5 rounded-full text-xs font-bold">
+                                                        Host
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="text-gray-400 animate-pulse">
+                                        Waiting for host to start the game...
+                                    </div>
+                                </div>
+                            ) : (
+                                // Loading spinner
+                                <>
+                                    <div className="w-12 h-12 border-4 border-marriott border-t-transparent rounded-full animate-spin" />
+                                    <div className="text-xl font-bold text-gray-400 animate-pulse">
+                                        {lastResult ? "Waiting for next question..." : "Get Ready!"}
+                                    </div>
+                                </>
+                            )}
                         </motion.div>
                     )}
 
@@ -180,6 +215,19 @@ export default function Player() {
                             exit={{ y: -50, opacity: 0 }}
                             className="space-y-4"
                         >
+                            {/* Question Text */}
+                            <div className="text-center mb-6">
+                                {currentQuestion.type === 'multi-select' && (
+                                    <div className="inline-block bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-bold mb-3">
+                                        ✨ Multi-Select Question
+                                    </div>
+                                )}
+                                <h2
+                                    className="text-xl md:text-2xl font-bold text-white leading-tight"
+                                    dangerouslySetInnerHTML={{ __html: currentQuestion.text }}
+                                />
+                            </div>
+
                             {currentQuestion.type === 'multi-select' ? (
                                 // Multi-select UI
                                 <>
@@ -192,7 +240,7 @@ export default function Player() {
                                                     playClick();
                                                     toggleAnswer(i);
                                                 }}
-                                                className={`rounded-2xl p-4 text-lg font-bold transition-all border-b-4 shadow-xl flex items-center justify-center text-center leading-tight ${selectedAnswers.includes(i)
+                                                className={`rounded-xl p-3 text-base font-bold transition-all border-b-4 shadow-xl flex items-center justify-center text-center leading-tight ${selectedAnswers.includes(i)
                                                     ? 'bg-marriott border-marriott-dark'
                                                     : 'bg-gray-800 border-gray-950 hover:bg-gray-700'
                                                     }`}
@@ -207,7 +255,7 @@ export default function Player() {
                                             submitMultiSelect();
                                         }}
                                         disabled={selectedAnswers.length === 0}
-                                        className="w-full py-4 text-xl"
+                                        className="w-full py-3 text-base"
                                     >
                                         Submit ({selectedAnswers.length} selected)
                                     </Button>
@@ -223,7 +271,7 @@ export default function Player() {
                                                 playClick();
                                                 submitAnswer(i);
                                             }}
-                                            className="bg-gray-800 rounded-2xl p-4 text-xl font-bold hover:bg-gray-700 active:scale-95 transition-all border-b-4 border-gray-950 shadow-xl flex items-center justify-center text-center leading-tight"
+                                            className="bg-gray-800 rounded-xl p-3 text-base font-bold hover:bg-gray-700 active:scale-95 transition-all border-b-4 border-gray-950 shadow-xl flex items-center justify-center text-center leading-tight"
                                         >
                                             {opt}
                                         </motion.button>
