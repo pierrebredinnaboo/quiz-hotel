@@ -5,7 +5,7 @@ import { HomeButton } from '../components/ui/HomeButton';
 import { motion } from 'framer-motion';
 
 export default function Leaderboard() {
-    const socket = useSocket();
+    const { socket } = useSocket();
     const [soloScores, setSoloScores] = useState([]);
     const [multiplayerScores, setMultiplayerScores] = useState([]);
     const [loading, setLoading] = useState(true);

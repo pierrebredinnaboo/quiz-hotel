@@ -43,15 +43,7 @@ class ErrorBoundary extends React.Component {
 }
 
 export default function Host() {
-    return (
-        <ErrorBoundary>
-            <HostContent />
-        </ErrorBoundary>
-    );
-}
-
-function HostContent() {
-    const socket = useSocket();
+    const { socket, isConnected } = useSocket();
 
     // Setup state
     const [hasSetup, setHasSetup] = useState(false);
@@ -268,6 +260,12 @@ function HostContent() {
                 >
                     <h1 className="text-4xl font-black text-center text-marriott mb-8">Host a Game</h1>
 
+                    {!isConnected && (
+                        <div className="bg-red-500/20 border border-red-500 text-red-200 p-4 rounded-xl text-center animate-pulse mb-6">
+                            🔌 Connecting to server...
+                        </div>
+                    )}
+
                     <div className="space-y-6 bg-gray-800 p-8 rounded-3xl border border-gray-700">
                         <div>
                             <label className="block text-gray-400 mb-4 text-lg">Choose your Avatar</label>
@@ -286,10 +284,10 @@ function HostContent() {
 
                     <Button
                         onClick={createRoom}
-                        disabled={!nickname.trim()}
-                        className="w-full text-2xl py-6 rounded-2xl"
+                        disabled={!nickname.trim() || !isConnected}
+                        className="w-full text-2xl py-6 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Create Room
+                        {isConnected ? "Create Room" : "Connecting..."}
                     </Button>
                 </motion.div>
             </div>

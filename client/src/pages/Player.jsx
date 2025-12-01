@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSound } from '../hooks/useSound';
 
 export default function Player() {
-    const socket = useSocket();
+    const { socket, isConnected } = useSocket();
     const { playClick } = useSound();
     const [joined, setJoined] = useState(false);
     const [nickname, setNickname] = useState('');
@@ -62,6 +62,10 @@ export default function Player() {
     }, [socket]);
 
     const joinGame = () => {
+        if (!isConnected) {
+            alert("Not connected to server. Please check your internet connection or try again.");
+            return;
+        }
         if (!nickname || !roomCode) return;
         socket.emit('join_room', { roomCode, nickname, avatar }, (response) => {
             if (response.success) {
@@ -103,6 +107,12 @@ export default function Player() {
                 >
                     <h1 className="text-4xl font-black text-center text-marriott mb-8">Marriott Quiz</h1>
 
+                    {!isConnected && (
+                        <div className="bg-red-500/20 border border-red-500 text-red-200 p-4 rounded-xl text-center animate-pulse">
+                            🔌 Connecting to server...
+                        </div>
+                    )}
+
                     <div className="space-y-4">
                         <div className="text-center">
                             <label className="block text-gray-400 mb-2">Choose Avatar</label>
@@ -122,8 +132,12 @@ export default function Player() {
                             className="text-center text-xl py-4"
                         />
                     </div>
-                    <Button onClick={joinGame} className="w-full text-2xl py-6 rounded-2xl shadow-lg shadow-marriott/30">
-                        Enter Game
+                    <Button
+                        onClick={joinGame}
+                        disabled={!isConnected}
+                        className="w-full text-2xl py-6 rounded-2xl shadow-lg shadow-marriott/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isConnected ? "Enter Game" : "Connecting..."}
                     </Button>
                 </motion.div>
             </div>

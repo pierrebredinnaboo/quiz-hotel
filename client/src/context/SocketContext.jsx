@@ -7,6 +7,7 @@ export const useSocket = () => useContext(SocketContext);
 
 export const SocketProvider = ({ children }) => {
     const [socket, setSocket] = useState(null);
+    const [isConnected, setIsConnected] = useState(false);
 
     useEffect(() => {
         // Connect to backend using environment variable or fallback to localhost
@@ -16,10 +17,17 @@ export const SocketProvider = ({ children }) => {
 
         newSocket.on('connect', () => {
             console.log('✅ Socket connected!');
+            setIsConnected(true);
+        });
+
+        newSocket.on('disconnect', () => {
+            console.log('❌ Socket disconnected');
+            setIsConnected(false);
         });
 
         newSocket.on('connect_error', (error) => {
             console.error('❌ Socket connection error:', error);
+            setIsConnected(false);
         });
 
         setSocket(newSocket);
@@ -28,7 +36,7 @@ export const SocketProvider = ({ children }) => {
     }, []);
 
     return (
-        <SocketContext.Provider value={socket}>
+        <SocketContext.Provider value={{ socket, isConnected }}>
             {children}
         </SocketContext.Provider>
     );

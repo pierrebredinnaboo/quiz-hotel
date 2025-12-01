@@ -6,7 +6,7 @@ import { HomeButton } from '../components/ui/HomeButton';
 import { motion } from 'framer-motion';
 
 export default function Admin() {
-    const socket = useSocket();
+    const { socket } = useSocket();
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');

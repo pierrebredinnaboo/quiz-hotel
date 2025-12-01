@@ -8,7 +8,7 @@ import { useSound } from '../hooks/useSound';
 import { hotelGroups } from '../data/brandsData';
 
 export default function Solo() {
-    const socket = useSocket();
+    const { socket } = useSocket();
     const { playClick } = useSound();
     const [roomCode, setRoomCode] = useState(null);
     const [gameState, setGameState] = useState('INIT'); // INIT, SETUP, QUESTION, RESULT, FINISHED
