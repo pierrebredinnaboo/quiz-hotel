@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   preview: {
     host: '0.0.0.0',
-    allowedHosts: ['all']
+    strictPort: false,
+    allowedHosts: true
   }
 })
