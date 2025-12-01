@@ -4,22 +4,64 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { HomeButton } from '../components/ui/HomeButton';
 import { AvatarSelector } from '../components/ui/AvatarSelector';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { useSound } from '../hooks/useSound';
+import { highlightBrands } from '../utils/highlightBrands';
+
+class ErrorBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false };
+    }
+
+    static getDerivedStateFromError(error) {
+        return { hasError: true };
+    }
+
+    componentDidCatch(error, errorInfo) {
+        console.error("Player UI Error:", error, errorInfo);
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
+                    <div className="text-center">
+                        <h1 className="text-2xl font-bold mb-4">Something went wrong</h1>
+                        <Button onClick={() => window.location.reload()}>Reload Game</Button>
+                    </div>
+                </div>
+            );
+        }
+
+        return this.props.children;
+    }
+}
 
 export default function Player() {
+    return (
+        <ErrorBoundary>
+            <PlayerContent />
+        </ErrorBoundary>
+    );
+}
+
+function PlayerContent() {
     const { socket, isConnected } = useSocket();
     const { playClick } = useSound();
     const [joined, setJoined] = useState(false);
     const [nickname, setNickname] = useState('');
     const [avatar, setAvatar] = useState('🐼');
     const [roomCode, setRoomCode] = useState('');
-    const [gameState, setGameState] = useState('WAITING'); // WAITING, QUESTION, RESULT
+    const [gameState, setGameState] = useState('WAITING'); // WAITING, QUESTION, RESULT, LEADERBOARD, FINISHED
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [lastResult, setLastResult] = useState(null);
     const [score, setScore] = useState(0);
     const [selectedAnswers, setSelectedAnswers] = useState([]); // For multi-select
     const [lobbyPlayers, setLobbyPlayers] = useState([]); // Players in lobby
+    const [leaderboard, setLeaderboard] = useState([]); // Intermediate leaderboard
+    const [correctAnswerText, setCorrectAnswerText] = useState(''); // Correct answer display
+    const [finalLeaderboard, setFinalLeaderboard] = useState([]); // Final podium
 
     // Auto-fill room code from URL parameter
     useEffect(() => {
@@ -51,10 +93,29 @@ export default function Player() {
         socket.on('question_result', (result) => {
             setLastResult(result);
             setScore(result.score);
-            setGameState('RESULT');
+            // Don't change state here, wait for question_ended
         });
 
-        socket.on('game_over', () => {
+        socket.on('question_ended', ({ leaderboard, correctAnswerText, correctAnswers, type }) => {
+            if (Array.isArray(leaderboard)) {
+                setLeaderboard(leaderboard);
+            }
+            setCorrectAnswerText(correctAnswerText);
+            // Update current question with correct answers for display
+            if (currentQuestion) {
+                setCurrentQuestion(prev => ({
+                    ...prev,
+                    correctAnswers: correctAnswers,
+                    type: type
+                }));
+            }
+            setGameState('LEADERBOARD');
+        });
+
+        socket.on('game_over', ({ leaderboard }) => {
+            if (Array.isArray(leaderboard)) {
+                setFinalLeaderboard(leaderboard);
+            }
             setGameState('FINISHED');
         });
 
@@ -63,9 +124,10 @@ export default function Player() {
             socket.off('game_started');
             socket.off('new_question');
             socket.off('question_result');
+            socket.off('question_ended');
             socket.off('game_over');
         };
-    }, [socket]);
+    }, [socket, currentQuestion]);
 
     const joinGame = () => {
         if (!isConnected) {
@@ -224,7 +286,7 @@ export default function Player() {
                                 )}
                                 <h2
                                     className="text-xl md:text-2xl font-bold text-white leading-tight"
-                                    dangerouslySetInnerHTML={{ __html: currentQuestion.text }}
+                                    dangerouslySetInnerHTML={{ __html: highlightBrands(currentQuestion.text) }}
                                 />
                             </div>
 
@@ -307,18 +369,118 @@ export default function Player() {
                         </motion.div>
                     )}
 
+                    {/* Intermediate Leaderboard */}
+                    {gameState === 'LEADERBOARD' && (
+                        <motion.div
+                            key="leaderboard"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="text-center w-full"
+                        >
+                            {/* Correct Answer Display */}
+                            {correctAnswerText && (
+                                <div className="mb-6">
+                                    <div className="text-lg text-gray-400 mb-2">Correct Answer{currentQuestion?.type === 'multi-select' ? 's' : ''}</div>
+                                    {currentQuestion?.type === 'multi-select' ? (
+                                        <div className="flex flex-wrap justify-center gap-2 max-w-4xl mx-auto">
+                                            {currentQuestion.correctAnswers && currentQuestion.correctAnswers.map((idx) => (
+                                                <div key={idx} className="text-base font-bold text-white bg-green-600 py-2 px-4 rounded-lg border border-green-400">
+                                                    {currentQuestion.options[idx]}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-2xl font-bold text-green-400 bg-green-900/30 py-3 px-6 rounded-xl inline-block border border-green-500/50">
+                                            {correctAnswerText}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <h2 className="text-4xl font-bold mb-8">Leaderboard</h2>
+                            <LayoutGroup>
+                                <div className="space-y-3 max-w-2xl mx-auto">
+                                    <AnimatePresence>
+                                        {Array.isArray(leaderboard) && leaderboard.map((p, i) => (
+                                            <motion.div
+                                                layout
+                                                key={p.id}
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, scale: 0.5 }}
+                                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                                className={`p-4 rounded-xl flex justify-between items-center text-lg font-bold shadow-lg ${i === 0 ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-white'}`}
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <span className="text-2xl w-10 text-left">{i === 0 ? '👑' : `#${i + 1}`}</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-2xl">{p.avatar || '👤'}</span>
+                                                        <span className="truncate max-w-[200px] text-left">{p.nickname}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-4">
+                                                    {p.lastRoundPoints > 0 && (
+                                                        <motion.span
+                                                            initial={{ opacity: 0, x: -20 }}
+                                                            animate={{ opacity: 1, x: 0 }}
+                                                            className="text-green-400 text-base"
+                                                        >
+                                                            +{p.lastRoundPoints}
+                                                        </motion.span>
+                                                    )}
+                                                    <span className="w-24 text-right">{p.score} pts}</span>
+                                                </div>
+                                            </motion.div>
+                                        ))}
+                                    </AnimatePresence>
+                                </div>
+                            </LayoutGroup>
+                            <div className="text-lg text-gray-400 animate-pulse mt-6">
+                                Next question in 3 seconds...
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {/* Final Podium */}
                     {gameState === 'FINISHED' && (
                         <motion.div
                             key="finished"
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            className="text-center"
+                            className="text-center w-full"
                         >
-                            <h1 className="text-5xl font-black mb-8">Game Over</h1>
-                            <div className="text-4xl font-bold text-marriott">Final Score: {score}</div>
+                            <h1 className="text-5xl font-black mb-12">🏆 Final Results 🏆</h1>
+                            <LayoutGroup>
+                                <div className="space-y-4 max-w-3xl mx-auto mb-12">
+                                    <AnimatePresence>
+                                        {Array.isArray(finalLeaderboard) && finalLeaderboard.map((p, i) => (
+                                            <motion.div
+                                                layout
+                                                key={p.id}
+                                                initial={{ opacity: 0, scale: 0.8 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                transition={{ delay: i * 0.2, type: "spring" }}
+                                                className={`p-6 rounded-2xl flex justify-between items-center text-2xl font-bold shadow-2xl ${i === 0 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-black scale-110' :
+                                                        i === 1 ? 'bg-gradient-to-r from-gray-300 to-gray-400 text-black' :
+                                                            i === 2 ? 'bg-gradient-to-r from-orange-400 to-orange-600 text-black' :
+                                                                'bg-gray-800 text-white'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center gap-6">
+                                                    <span className="text-4xl">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}</span>
+                                                    <span className="text-3xl">{p.avatar || '👤'}</span>
+                                                    <span>{p.nickname}</span>
+                                                </div>
+                                                <span className="text-3xl font-black">{p.score} pts</span>
+                                            </motion.div>
+                                        ))}
+                                    </AnimatePresence>
+                                </div>
+                            </LayoutGroup>
                             <Button
                                 onClick={() => window.location.reload()}
-                                className="mt-12 w-full py-6 text-xl"
+                                className="mt-8 w-full max-w-md py-4 text-lg"
                                 variant="outline"
                             >
                                 Play Again

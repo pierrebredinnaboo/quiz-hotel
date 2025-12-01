@@ -935,6 +935,43 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
+
+        // Find room where user is a player
+        for (const roomCode in games) {
+            const room = games[roomCode];
+            const playerIndex = room.players.findIndex(p => p.id === socket.id);
+
+            if (playerIndex !== -1) {
+                const player = room.players[playerIndex];
+                room.players.splice(playerIndex, 1);
+                console.log(`❌ ${player.nickname} left room ${roomCode}`);
+
+                // If game hasn't started, update lobby for others
+                if (room.gameState === 'LOBBY') {
+                    io.to(roomCode).emit('lobby_update', {
+                        players: room.players.map(p => ({
+                            nickname: p.nickname,
+                            avatar: p.avatar,
+                            isHost: p.id === room.hostId
+                        }))
+                    });
+                }
+
+                // If host left, maybe notify others? For now just log
+                if (room.hostId === socket.id) {
+                    console.log(`⚠️ Host left room ${roomCode}`);
+                    // Optional: io.to(roomCode).emit('host_left');
+                }
+
+                // Clean up empty rooms
+                if (room.players.length === 0) {
+                    delete games[roomCode];
+                    console.log(`🗑️ Room ${roomCode} deleted (empty)`);
+                }
+
+                break; // User can only be in one room
+            }
+        }
     });
 });
 

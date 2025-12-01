@@ -6,6 +6,15 @@ import { AdminButton } from '../components/ui/AdminButton';
 export default function Home() {
     const navigate = useNavigate();
 
+    // Auto-redirect if roomCode is present
+    React.useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const roomCode = params.get('roomCode');
+        if (roomCode) {
+            navigate(`/play?roomCode=${roomCode}`);
+        }
+    }, [navigate]);
+
     return (
         <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center p-4 relative">
             <AdminButton />
