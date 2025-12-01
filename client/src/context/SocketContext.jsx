@@ -9,9 +9,19 @@ export const SocketProvider = ({ children }) => {
     const [socket, setSocket] = useState(null);
 
     useEffect(() => {
-        // Connect to backend (assumes localhost:3000 for now, or relative if proxied)
-        // Since Vite runs on 5173 and server on 3000, we need to specify URL.
-        const newSocket = io('http://localhost:3000');
+        // Connect to backend using environment variable or fallback to localhost
+        const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
+        console.log('🔌 Connecting to socket:', socketUrl);
+        const newSocket = io(socketUrl);
+
+        newSocket.on('connect', () => {
+            console.log('✅ Socket connected!');
+        });
+
+        newSocket.on('connect_error', (error) => {
+            console.error('❌ Socket connection error:', error);
+        });
+
         setSocket(newSocket);
 
         return () => newSocket.close();

@@ -626,17 +626,22 @@ io.on('connection', (socket) => {
 
     // Join room
     socket.on('join_room', ({ roomCode, nickname, avatar }, callback) => {
+        console.log(`🎮 Join attempt - Room: ${roomCode}, Nickname: ${nickname}, Avatar: ${avatar}`);
+
         const room = games[roomCode];
         if (!room) {
-            return callback({ error: "Room not found" });
+            console.log(`❌ Room ${roomCode} not found. Available rooms:`, Object.keys(games));
+            return callback({ success: false, error: "Room not found. Please check the code." });
         }
         if (room.gameState !== 'LOBBY') {
-            return callback({ error: "Game already started" });
+            console.log(`❌ Room ${roomCode} already started (state: ${room.gameState})`);
+            return callback({ success: false, error: "Game already started" });
         }
 
         const existingPlayer = room.players.find(p => p.nickname === nickname);
         if (existingPlayer) {
-            return callback({ error: "Nickname taken" });
+            console.log(`❌ Nickname ${nickname} already taken in room ${roomCode}`);
+            return callback({ success: false, error: "Nickname already taken" });
         }
 
         const player = {
@@ -651,7 +656,7 @@ io.on('connection', (socket) => {
 
         io.to(room.hostId).emit('player_joined', player);
         callback({ success: true });
-        console.log(`${nickname} joined room ${roomCode} with avatar ${avatar}`);
+        console.log(`✅ ${nickname} joined room ${roomCode} with avatar ${avatar}`);
     });
 
     // Start game
