@@ -1,0 +1,498 @@
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const cors = require('cors');
+
+const app = express();
+app.use(cors());
+
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: "*", // Allow all origins for simplicity in this prototype
+        methods: ["GET", "POST"]
+    }
+});
+
+// --- Data & Constants ---
+
+const MARRIOTT_BRANDS = {
+    "Luxury & Ultra-Luxe": ["The Ritz-Carlton", "Ritz-Carlton Reserve", "St. Regis", "JW Marriott", "W Hotels", "The Luxury Collection", "EDITION", "Bulgari Hotels & Resorts"],
+    "Premium": ["Marriott Hotels", "Sheraton", "Westin", "Renaissance Hotels", "Autograph Collection Hotels", "Delta Hotels", "Gaylord Hotels", "Design Hotels", "Tribute Portfolio"],
+    "Upscale & Midscale": ["Courtyard", "Four Points by Sheraton", "Fairfield by Marriott", "AC Hotels", "Aloft Hotels", "Moxy Hotels", "Element by Westin", "Protea Hotels", "City Express by Marriott"],
+    "Extended Stay": ["TownePlace Suites", "StudioRes", "Apartments by Marriott Bonvoy", "Homes & Villas by Marriott Bonvoy", "Residence Inn", "SpringHill Suites"]
+};
+
+const COMPETITORS = ["Hilton", "Waldorf Astoria", "Hampton Inn", "Sofitel", "Novotel", "ibis", "Mercure", "Pullman", "InterContinental", "Holiday Inn", "Crowne Plaza", "Park Hyatt", "Grand Hyatt", "Best Western", "Radisson"];
+
+const ALL_MARRIOTT_BRANDS = Object.values(MARRIOTT_BRANDS).flat();
+const CATEGORIES = Object.keys(MARRIOTT_BRANDS);
+
+// --- Game State ---
+
+const games = {}; // { roomCode: { hostId, players: [], gameState, questions, currentQuestionIndex, ... } }
+
+// --- Helper Functions ---
+
+function generateRoomCode() {
+    return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+function generateQuestions(count = 10) {
+    const questions = [];
+    for (let i = 0; i < count; i++) {
+        const logicType = Math.random() > 0.5 ? 'A' : 'B';
+
+        if (logicType === 'A') {
+            // Logic A: Match Brand to Category
+            const category = CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
+            const brand = MARRIOTT_BRANDS[category][Math.floor(Math.random() * MARRIOTT_BRANDS[category].length)];
+
+            const BRANDS = [
+                'Marriott', 'JW Marriott', 'The Ritz-Carlton', 'St. Regis', 'W Hotels', 'EDITION',
+                'The Luxury Collection', 'Sheraton', 'Westin', 'Le Méridien', 'Renaissance',
+                'Gaylord Hotels', 'Delta Hotels', 'Marriott Executive Apartments',
+                'Marriott Vacation Club', 'Autograph Collection', 'Tribute Portfolio',
+                'Design Hotels', 'Courtyard', 'Four Points', 'SpringHill Suites',
+                'Fairfield Inn & Suites', 'AC Hotels', 'Aloft', 'Moxy', 'Residence Inn',
+                'TownePlace Suites', 'Element', 'Homes & Villas by Marriott International',
+                'Ritz-Carlton Reserve', 'Bulgari', 'Ritz-Carlton Yacht Collection',
+                'Hilton', 'Hyatt', 'IHG', 'Best Western', 'Wyndham', 'Radisson', 'Accor',
+                'Sofitel', 'Novotel', 'Ibis', 'Crowne Plaza', 'Holiday Inn'
+            ];
+
+            // Helper function to highlight brand names in question text
+            function highlightBrands(text) {
+                let highlightedText = text;
+                // Sort brands by length (longest first) to avoid partial matches
+                const sortedBrands = [...BRANDS].sort((a, b) => b.length - a.length);
+
+                sortedBrands.forEach(brand => {
+                    // Use word boundaries to match whole brand names
+                    const regex = new RegExp(`\\b(${brand})\\b`, 'gi');
+                    highlightedText = highlightedText.replace(regex, '**$1**');
+                });
+
+                return highlightedText;
+            }
+
+            function generateQuestions(count = 5) {
+                const allQuestions = [
+                    // Luxury & Ultra-Luxe
+                    { text: "Which brand is Marriott's flagship luxury brand?", options: ["JW Marriott", "Ritz-Carlton", "St. Regis", "W Hotels"], correctAnswer: 1, category: "Luxury & Ultra-Luxe" },
+                    { text: "Is Bulgari part of the Marriott portfolio?", options: ["Yes", "No"], correctAnswer: 0, category: "Luxury & Ultra-Luxe" },
+                    { text: "Which brand offers yacht experiences?", options: ["W Hotels", "Ritz-Carlton", "EDITION", "St. Regis"], correctAnswer: 1, category: "Luxury & Ultra-Luxe" },
+
+                    // Premium
+                    { text: "Which brand is known for its wellness focus?", options: ["Sheraton", "Westin", "Renaissance", "Le Méridien"], correctAnswer: 1, category: "Premium" },
+                    { text: "Is Autograph Collection a soft brand?", options: ["Yes", "No"], correctAnswer: 0, category: "Premium" },
+                    { text: "Which brand targets creative travelers?", options: ["Renaissance", "Le Méridien", "Sheraton", "Delta Hotels"], correctAnswer: 0, category: "Premium" },
+
+                    // Select
+                    { text: "Which brand is designed for extended stays?", options: ["Courtyard", "Residence Inn", "Fairfield Inn", "SpringHill Suites"], correctAnswer: 1, category: "Select" },
+                    { text: "Is Moxy a budget-friendly brand?", options: ["Yes", "No"], correctAnswer: 0, category: "Select" },
+                    { text: "Which brand focuses on eco-conscious travelers?", options: ["Element", "Aloft", "AC Hotels", "Four Points"], correctAnswer: 0, category: "Select" },
+
+                    // Longer Stays
+                    { text: "Which brand offers vacation ownership?", options: ["Residence Inn", "Marriott Vacation Club", "TownePlace Suites", "Element"], correctAnswer: 1, category: "Longer Stays" },
+                    { text: "Does Homes & Villas offer private home rentals?", options: ["Yes", "No"], correctAnswer: 0, category: "Longer Stays" },
+
+                    // Competitors (Not Marriott)
+                    { text: "Is Hilton part of Marriott?", options: ["Yes", "No"], correctAnswer: 1, category: "Competitors" },
+                    { text: "Which of these is NOT a Marriott brand?", options: ["Westin", "Sofitel", "Sheraton", "Courtyard"], correctAnswer: 1, category: "Competitors" },
+                    { text: "Is Crowne Plaza a Marriott brand?", options: ["Yes", "No"], correctAnswer: 1, category: "Competitors" },
+                    { text: "Which is a competitor brand?", options: ["Aloft", "Best Western", "Moxy", "AC Hotels"], correctAnswer: 1, category: "Competitors" },
+                ];
+
+                // Shuffle and pick questions
+                const shuffled = allQuestions.sort(() => Math.random() - 0.5);
+                const selected = shuffled.slice(0, count);
+
+                // Highlight brand names in questions
+                const questions = selected.map(q => ({
+                    ...q,
+                    text: highlightBrands(q.text),
+                    options: q.options,
+                    timeLimit: 12 // Changed to 12 seconds
+                }));
+
+                return questions;
+            }
+
+            const globalScores = []; // Legacy - kept for backward compatibility
+            const dailySoloScores = []; // { nickname, score, avatar, date }
+            const soloScores = []; // All-time solo scores
+            const multiplayerScores = []; // All-time multiplayer scores
+
+            const ADMIN_PASSWORD = '12345';
+
+            // --- Socket.io Logic ---
+
+            io.on('connection', (socket) => {
+                console.log('User connected:', socket.id);
+
+                // Admin login
+                socket.on('admin_login', ({ password }, callback) => {
+                    if (password === ADMIN_PASSWORD) {
+                        callback({ success: true });
+                    } else {
+                        callback({ success: false, error: 'Invalid password' });
+                    }
+                });
+
+                // Admin delete score
+                socket.on('admin_delete_score', ({ leaderboard, index }, callback) => {
+                    try {
+                        if (leaderboard === 'solo') {
+                            soloScores.splice(index, 1);
+                        } else if (leaderboard === 'multiplayer') {
+                            multiplayerScores.splice(index, 1);
+                        } else if (leaderboard === 'daily') {
+                            dailySoloScores.splice(index, 1);
+                        }
+                        callback({ success: true });
+                    } catch (error) {
+                        callback({ success: false, error: error.message });
+                    }
+                });
+
+                // Admin clear leaderboard
+                socket.on('admin_clear_leaderboard', ({ leaderboard }, callback) => {
+                    try {
+                        if (leaderboard === 'solo') {
+                            soloScores.length = 0;
+                        } else if (leaderboard === 'multiplayer') {
+                            multiplayerScores.length = 0;
+                        } else if (leaderboard === 'daily') {
+                            dailySoloScores.length = 0;
+                        }
+                        callback({ success: true });
+                    } catch (error) {
+                        callback({ success: false, error: error.message });
+                    }
+                });
+
+                // Get solo leaderboard (all-time)
+                socket.on('get_solo_leaderboard', (callback) => {
+                    const top10 = [...soloScores].sort((a, b) => b.score - a.score).slice(0, 10);
+                    callback(top10);
+                });
+
+                // Get multiplayer leaderboard (all-time)
+                socket.on('get_multiplayer_leaderboard', (callback) => {
+                    const top10 = [...multiplayerScores].sort((a, b) => b.score - a.score).slice(0, 10);
+                    callback(top10);
+                });
+
+                // Send global leaderboard on request (legacy - now returns solo scores)
+                socket.on('get_global_leaderboard', (callback) => {
+                    console.log('Sending global leaderboard to', socket.id);
+                    const top10 = [...soloScores].sort((a, b) => b.score - a.score).slice(0, 10);
+                    callback(top10);
+                });
+
+                // Send daily solo leaderboard
+                socket.on('get_daily_leaderboard', (callback) => {
+                    const today = new Date().toDateString();
+                    const todaysScores = dailySoloScores
+                        .filter(s => new Date(s.date).toDateString() === today)
+                        .sort((a, b) => b.score - a.score)
+                        .slice(0, 10);
+                    callback(todaysScores);
+                });
+
+                // Submit solo score
+                socket.on('submit_solo_score', ({ nickname, score, avatar }, callback) => {
+                    console.log(`Solo score submitted: ${nickname} - ${score} - ${avatar}`);
+
+                    const scoreEntry = {
+                        nickname,
+                        score,
+                        avatar: avatar || '👤',
+                        date: new Date()
+                    };
+
+                    // Add to daily leaderboard
+                    dailySoloScores.push(scoreEntry);
+
+                    // Add to all-time solo leaderboard
+                    soloScores.push(scoreEntry);
+
+                    // IMPORTANT: Call the callback to notify the client
+                    if (callback && typeof callback === 'function') {
+                        callback({ success: true });
+                    }
+                });
+
+                socket.on('create_room', (dataOrCallback, maybeCallback) => {
+                    // Handle both signatures: create_room(callback) and create_room({ nickname, avatar }, callback)
+                    let nickname, avatar, callback;
+
+                    if (typeof dataOrCallback === 'function') {
+                        // Old signature: create_room(callback)
+                        callback = dataOrCallback;
+                    } else {
+                        // New signature: create_room({ nickname, avatar }, callback)
+                        nickname = dataOrCallback?.nickname;
+                        avatar = dataOrCallback?.avatar;
+                        callback = maybeCallback;
+                    }
+
+                    const roomCode = generateRoomCode();
+                    games[roomCode] = {
+                        hostId: socket.id,
+                        players: [], // { id, nickname, avatar, score: 0, streak: 0, lastAnswerTime: null }
+                        gameState: 'LOBBY', // LOBBY, QUESTION, LEADERBOARD, FINISHED
+                        questions: [],
+                        currentQuestionIndex: -1,
+                        answers: {} // { playerId: { answer, time } } for current question
+                    };
+
+                    // If host provided nickname, add them as a player
+                    if (nickname) {
+                        const hostPlayer = {
+                            id: socket.id,
+                            nickname,
+                            avatar: avatar || '👤',
+                            score: 0,
+                            streak: 0,
+                            isHost: true
+                        };
+                        games[roomCode].players.push(hostPlayer);
+                    }
+
+                    socket.join(roomCode);
+                    callback({ roomCode });
+                    console.log(`Room created: ${roomCode} by ${socket.id}${nickname ? ` (${nickname})` : ''}`);
+                });
+
+                socket.on('join_room', ({ roomCode, nickname, avatar }, callback) => {
+                    const room = games[roomCode];
+                    if (!room) {
+                        return callback({ error: "Room not found" });
+                    }
+                    if (room.gameState !== 'LOBBY') {
+                        return callback({ error: "Game already started" });
+                    }
+
+                    const existingPlayer = room.players.find(p => p.nickname === nickname);
+                    if (existingPlayer) {
+                        return callback({ error: "Nickname taken" });
+                    }
+
+                    const player = {
+                        id: socket.id,
+                        nickname,
+                        avatar: avatar || '👤',
+                        score: 0,
+                        streak: 0
+                    };
+                    room.players.push(player);
+                    socket.join(roomCode);
+
+                    // Notify host
+                    io.to(room.hostId).emit('player_joined', player);
+
+                    callback({ success: true, playerId: socket.id });
+                    console.log(`${nickname} joined room ${roomCode} with avatar ${player.avatar}`);
+                });
+
+                socket.on('start_game', ({ roomCode }) => {
+                    const room = games[roomCode];
+                    if (!room || room.hostId !== socket.id) return;
+
+                    // For Solo Mode: if no players in room, add the host as a temporary player
+                    if (room.players.length === 0) {
+                        room.players.push({
+                            id: socket.id,
+                            nickname: 'SoloPlayer', // Temporary nickname, will be replaced when submitting score
+                            avatar: '👤',
+                            score: 0,
+                            streak: 0
+                        });
+                    }
+
+                    room.questions = generateQuestions(15); // Generate 15 questions
+                    room.gameState = 'QUESTION';
+                    room.currentQuestionIndex = 0;
+
+                    // Send first question
+                    const question = room.questions[0];
+                    io.to(roomCode).emit('game_started');
+                    io.to(roomCode).emit('new_question', {
+                        question: {
+                            text: question.text,
+                            options: question.options,
+                            timeLimit: question.timeLimit,
+                            index: 0,
+                            total: room.questions.length
+                        }
+                    });
+
+                    room.currentQuestionStartTime = Date.now();
+                });
+
+                socket.on('submit_answer', ({ roomCode, answer }) => {
+                    const room = games[roomCode];
+                    if (!room || room.gameState !== 'QUESTION') return;
+
+                    // Record answer
+                    const player = room.players.find(p => p.id === socket.id);
+                    if (!player) return;
+
+                    if (room.answers[socket.id]) return; // Already answered
+
+                    const timeTaken = (Date.now() - room.currentQuestionStartTime) / 1000;
+                    room.answers[socket.id] = { answer, timeTaken };
+
+                    // Notify host that this player answered
+                    io.to(room.hostId).emit('player_answered', { playerId: socket.id });
+
+                    // Check if all players answered - if so, auto-trigger time_up
+                    if (Object.keys(room.answers).length === room.players.length) {
+                        console.log(`All players answered for room ${roomCode}, auto-triggering time_up`);
+                        // Auto-trigger time_up after a short delay
+                        setTimeout(() => {
+                            if (room.gameState === 'QUESTION') {
+                                // Emit time_up to process the question
+                                const hostSocket = io.sockets.sockets.get(room.hostId);
+                                if (hostSocket) {
+                                    hostSocket.emit('time_up', { roomCode });
+                                }
+                            }
+                        }, 500);
+                    }
+                });
+
+                // Helper function to process time_up logic
+                function processTimeUp(room, roomCode) {
+                    if (room.gameState !== 'QUESTION') return; // Already processed
+
+                    console.log(`Time up for room ${roomCode}, question ${room.currentQuestionIndex + 1}`);
+
+                    const currentQuestion = room.questions[room.currentQuestionIndex];
+                    const correctAnswer = currentQuestion.correctAnswer;
+
+                    // Calculate scores
+                    room.players.forEach(player => {
+                        const playerAnswerData = room.answers[player.id];
+                        let points = 0;
+                        let isCorrect = false;
+
+                        if (playerAnswerData) {
+                            const { answer, timeTaken } = playerAnswerData;
+                            if (answer === correctAnswer) {
+                                isCorrect = true;
+                                // Score Calculation
+                                // Base: 600
+                                // Speed: 0-400. (1 - time/limit)
+                                const speedFactor = Math.max(0, 1 - (timeTaken / currentQuestion.timeLimit));
+                                const speedBonus = Math.round(400 * speedFactor);
+                                points = 600 + speedBonus;
+
+                                // Streak Bonus
+                                if (player.streak >= 3) {
+                                    points += 100; // Simple bonus
+                                }
+
+                                player.score += points;
+                                player.streak += 1;
+                            } else {
+                                player.streak = 0;
+                            }
+                        } else {
+                            player.streak = 0;
+                        }
+
+                        // Notify player of result
+                        io.to(player.id).emit('question_result', {
+                            correct: isCorrect,
+                            points: points,
+                            score: player.score,
+                            streak: player.streak,
+                            correctAnswer: correctAnswer
+                        });
+                    });
+
+                    // Send results to Host (Leaderboard update)
+                    // Sort players by score
+                    const leaderboard = [...room.players].sort((a, b) => b.score - a.score).slice(0, 5);
+
+                    io.to(room.hostId).emit('question_ended', {
+                        answers: room.answers,
+                        correctAnswer: correctAnswer,
+                        leaderboard: leaderboard
+                    });
+
+                    room.gameState = 'LEADERBOARD';
+                }
+
+                socket.on('time_up', ({ roomCode }) => {
+                    const room = games[roomCode];
+                    if (!room || room.hostId !== socket.id) return;
+
+                    processTimeUp(room, roomCode);
+                });
+
+                socket.on('next_question', ({ roomCode }) => {
+                    const room = games[roomCode];
+                    if (!room) return;
+
+                    // Allow if user is host OR if it's a solo game (host and only player are the same)
+                    const isSoloMode = room.players.length === 1 && room.players[0].id === room.hostId;
+                    if (room.hostId !== socket.id && !isSoloMode) return;
+
+                    console.log(`Next question requested for room ${roomCode}, current index: ${room.currentQuestionIndex}`);
+
+                    room.currentQuestionIndex += 1;
+                    room.answers = {}; // Reset answers
+
+                    if (room.currentQuestionIndex >= room.questions.length) {
+                        room.gameState = 'FINISHED';
+                        const finalLeaderboard = [...room.players].sort((a, b) => b.score - a.score);
+
+                        // Update Multiplayer Leaderboard (only if more than 1 player)
+                        if (room.players.length > 1) {
+                            finalLeaderboard.forEach(p => {
+                                if (p.score > 0) {
+                                    multiplayerScores.push({
+                                        nickname: p.nickname,
+                                        score: p.score,
+                                        avatar: p.avatar || '👤',
+                                        date: new Date()
+                                    });
+                                }
+                            });
+                        }
+
+                        console.log(`Game over for room ${roomCode}`);
+                        io.to(roomCode).emit('game_over', { leaderboard: finalLeaderboard });
+                    } else {
+                        room.gameState = 'QUESTION';
+                        const question = room.questions[room.currentQuestionIndex];
+
+                        console.log(`Sending question ${room.currentQuestionIndex + 1}/${room.questions.length} to room ${roomCode}`);
+                        io.to(roomCode).emit('new_question', {
+                            question: {
+                                text: question.text,
+                                options: question.options,
+                                timeLimit: question.timeLimit,
+                                index: room.currentQuestionIndex,
+                                total: room.questions.length
+                            }
+                        });
+                        room.currentQuestionStartTime = Date.now();
+                    }
+                });
+
+                socket.on('disconnect', () => {
+                    console.log('User disconnected:', socket.id);
+                    // Handle player leaving?
+                    // For now, just keep them in the list but they won't answer.
+                });
+            }); // This closes the io.on('connection', ...) block
+
+            const PORT = process.env.PORT || 3000;
+            server.listen(PORT, () => {
+                console.log(`Server running on port ${PORT}`);
+            });
