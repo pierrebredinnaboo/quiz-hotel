@@ -170,8 +170,13 @@ function PlayerContent() {
         if (socket && joined) {
             console.log('🚪 Emitting leave_room');
             socket.emit('leave_room');
+            // Give socket time to send the event before page reload
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 100);
+        } else {
+            window.location.href = '/';
         }
-        window.location.href = '/';
     };
 
     if (!joined) {
