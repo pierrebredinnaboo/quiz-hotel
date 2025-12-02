@@ -166,7 +166,9 @@ function PlayerContent() {
     };
 
     const handleLeaveGame = () => {
+        console.log('🚪 handleLeaveGame called, socket:', socket, 'joined:', joined);
         if (socket && joined) {
+            console.log('🚪 Emitting leave_room');
             socket.emit('leave_room');
         }
         window.location.href = '/';

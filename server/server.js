@@ -972,6 +972,7 @@ io.on('connection', (socket) => {
     };
 
     socket.on('leave_room', () => {
+        console.log('🚪 leave_room event received from:', socket.id);
         removePlayer(socket.id);
     });
 
