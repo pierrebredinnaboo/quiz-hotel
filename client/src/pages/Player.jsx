@@ -166,7 +166,10 @@ function PlayerContent() {
     };
 
     const handleLeaveGame = () => {
-        console.log('🚪 handleLeaveGame called, socket:', socket, 'joined:', joined);
+        const confirmed = window.confirm('Êtes-vous sûr de vouloir quitter la partie ?');
+        if (!confirmed) return;
+
+        console.log('🚪 handleLeaveGame confirmed, socket:', socket, 'joined:', joined);
         if (socket && joined) {
             console.log('🚪 Emitting leave_room');
             socket.emit('leave_room');
