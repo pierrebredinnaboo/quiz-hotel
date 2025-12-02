@@ -96,6 +96,11 @@ export default function Host() {
             setPlayers(prev => [...prev, player]);
         });
 
+        socket.on('lobby_update', ({ players: updatedPlayers }) => {
+            // Update the full player list (handles both joins and leaves)
+            setPlayers(updatedPlayers);
+        });
+
         socket.on('game_started', () => {
             setGameState('QUESTION');
             setIsGenerating(false);
@@ -140,6 +145,7 @@ export default function Host() {
 
         return () => {
             socket.off('player_joined');
+            socket.off('lobby_update');
             socket.off('game_started');
             socket.off('new_question');
             socket.off('player_answered');
