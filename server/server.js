@@ -933,13 +933,11 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
-
+    const removePlayer = (socketId) => {
         // Find room where user is a player
         for (const roomCode in games) {
             const room = games[roomCode];
-            const playerIndex = room.players.findIndex(p => p.id === socket.id);
+            const playerIndex = room.players.findIndex(p => p.id === socketId);
 
             if (playerIndex !== -1) {
                 const player = room.players[playerIndex];
@@ -958,9 +956,8 @@ io.on('connection', (socket) => {
                 }
 
                 // If host left, maybe notify others? For now just log
-                if (room.hostId === socket.id) {
+                if (room.hostId === socketId) {
                     console.log(`⚠️ Host left room ${roomCode}`);
-                    // Optional: io.to(roomCode).emit('host_left');
                 }
 
                 // Clean up empty rooms
@@ -969,9 +966,18 @@ io.on('connection', (socket) => {
                     console.log(`🗑️ Room ${roomCode} deleted (empty)`);
                 }
 
-                break; // User can only be in one room
+                return; // User can only be in one room
             }
         }
+    };
+
+    socket.on('leave_room', () => {
+        removePlayer(socket.id);
+    });
+
+    socket.on('disconnect', () => {
+        console.log('User disconnected:', socket.id);
+        removePlayer(socket.id);
     });
 });
 

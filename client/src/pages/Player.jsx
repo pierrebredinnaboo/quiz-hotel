@@ -120,6 +120,7 @@ function PlayerContent() {
         });
 
         return () => {
+            socket.emit('leave_room');
             socket.off('lobby_update');
             socket.off('game_started');
             socket.off('new_question');
@@ -127,7 +128,7 @@ function PlayerContent() {
             socket.off('question_ended');
             socket.off('game_over');
         };
-    }, [socket, currentQuestion]);
+    }, [socket]);
 
     const joinGame = () => {
         if (!isConnected) {
@@ -284,10 +285,9 @@ function PlayerContent() {
                                         ✨ Multi-Select Question
                                     </div>
                                 )}
-                                <h2
-                                    className="text-xl md:text-2xl font-bold text-white leading-tight"
-                                    dangerouslySetInnerHTML={{ __html: highlightBrands(currentQuestion.text) }}
-                                />
+                                <h2 className="text-xl md:text-2xl font-bold text-white leading-tight">
+                                    {highlightBrands(currentQuestion.text)}
+                                </h2>
                             </div>
 
                             {currentQuestion.type === 'multi-select' ? (
@@ -429,7 +429,7 @@ function PlayerContent() {
                                                             +{p.lastRoundPoints}
                                                         </motion.span>
                                                     )}
-                                                    <span className="w-24 text-right">{p.score} pts}</span>
+                                                    <span className="w-24 text-right">{p.score} pts</span>
                                                 </div>
                                             </motion.div>
                                         ))}
@@ -462,9 +462,9 @@ function PlayerContent() {
                                                 animate={{ opacity: 1, scale: 1 }}
                                                 transition={{ delay: i * 0.2, type: "spring" }}
                                                 className={`p-6 rounded-2xl flex justify-between items-center text-2xl font-bold shadow-2xl ${i === 0 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-black scale-110' :
-                                                        i === 1 ? 'bg-gradient-to-r from-gray-300 to-gray-400 text-black' :
-                                                            i === 2 ? 'bg-gradient-to-r from-orange-400 to-orange-600 text-black' :
-                                                                'bg-gray-800 text-white'
+                                                    i === 1 ? 'bg-gradient-to-r from-gray-300 to-gray-400 text-black' :
+                                                        i === 2 ? 'bg-gradient-to-r from-orange-400 to-orange-600 text-black' :
+                                                            'bg-gray-800 text-white'
                                                     }`}
                                             >
                                                 <div className="flex items-center gap-6">
