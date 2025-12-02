@@ -165,6 +165,13 @@ function PlayerContent() {
         setGameState('WAITING');
     };
 
+    const handleLeaveGame = () => {
+        if (socket && joined) {
+            socket.emit('leave_room');
+        }
+        window.location.href = '/';
+    };
+
     if (!joined) {
         return (
             <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4 relative">
@@ -215,7 +222,7 @@ function PlayerContent() {
 
     return (
         <div className="min-h-screen bg-gray-900 text-white p-4 flex flex-col overflow-hidden relative">
-            <HomeButton />
+            <HomeButton onClick={handleLeaveGame} />
             <div className="flex justify-between items-center mb-4 pl-12">
                 <div className="flex items-center gap-2">
                     <span className="text-2xl">{avatar}</span>

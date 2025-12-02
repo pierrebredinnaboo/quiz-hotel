@@ -1,11 +1,19 @@
 import React from 'react';
 import { Button } from './Button';
 
-export const HomeButton = ({ className = "" }) => {
+export const HomeButton = ({ className = "", onClick }) => {
+    const handleClick = () => {
+        if (onClick) {
+            onClick();
+        } else {
+            window.location.href = '/';
+        }
+    };
+
     return (
         <Button
             variant="ghost"
-            onClick={() => window.location.href = '/'}
+            onClick={handleClick}
             className={`absolute top-4 left-4 z-50 text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-800 transition-all ${className}`}
             title="Back to Home"
         >
