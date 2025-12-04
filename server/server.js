@@ -934,24 +934,17 @@ io.on('connection', (socket) => {
     });
 
     const removePlayer = (socketId) => {
-        console.log(`🔍 removePlayer called for socket: ${socketId}`);
-        console.log(`🔍 Active rooms:`, Object.keys(games));
-
         // Find room where user is a player
         for (const roomCode in games) {
             const room = games[roomCode];
-            console.log(`🔍 Checking room ${roomCode}, players:`, room.players.map(p => ({ id: p.id, nickname: p.nickname })));
             const playerIndex = room.players.findIndex(p => p.id === socketId);
 
             if (playerIndex !== -1) {
                 const player = room.players[playerIndex];
                 room.players.splice(playerIndex, 1);
-                console.log(`❌ ${player.nickname} left room ${roomCode}`);
-                console.log(`🔍 Remaining players:`, room.players.map(p => ({ id: p.id, nickname: p.nickname })));
 
                 // If game hasn't started, update lobby for others
                 if (room.gameState === 'LOBBY') {
-                    console.log(`📢 Emitting lobby_update to room ${roomCode}`);
                     io.to(roomCode).emit('lobby_update', {
                         players: room.players.map(p => ({
                             nickname: p.nickname,
@@ -963,28 +956,23 @@ io.on('connection', (socket) => {
 
                 // If host left, maybe notify others? For now just log
                 if (room.hostId === socketId) {
-                    console.log(`⚠️ Host left room ${roomCode}`);
                 }
 
                 // Clean up empty rooms
                 if (room.players.length === 0) {
                     delete games[roomCode];
-                    console.log(`🗑️ Room ${roomCode} deleted (empty)`);
                 }
 
                 return; // User can only be in one room
             }
         }
-        console.log(`⚠️ No player found with socket ID ${socketId} in any room`);
     };
 
     socket.on('leave_room', () => {
-        console.log('🚪 leave_room event received from:', socket.id);
         removePlayer(socket.id);
     });
 
     socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
         removePlayer(socket.id);
     });
 });

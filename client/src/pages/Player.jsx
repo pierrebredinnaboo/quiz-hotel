@@ -169,9 +169,7 @@ function PlayerContent() {
         const confirmed = window.confirm('Êtes-vous sûr de vouloir quitter la partie ?');
         if (!confirmed) return;
 
-        console.log('🚪 handleLeaveGame confirmed, socket:', socket, 'joined:', joined);
         if (socket && joined) {
-            console.log('🚪 Emitting leave_room');
             socket.emit('leave_room');
             // Give socket time to send the event before page reload
             setTimeout(() => {
