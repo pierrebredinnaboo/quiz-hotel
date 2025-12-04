@@ -471,7 +471,9 @@ function generateQuestions(count = 10) {
         { text: "Which of these is NOT a Marriott brand?", options: ["Westin", "Sofitel", "Sheraton", "Courtyard"], correctAnswer: 1 },
         { text: "Is Crowne Plaza a Marriott brand?", options: ["Yes", "No"], correctAnswer: 1 },
         { text: "Which is a competitor brand?", options: ["Aloft", "Best Western", "Moxy", "AC Hotels"], correctAnswer: 1 },
-        // Multi-select fallback questions
+    ];
+
+    const multiSelectQuestions = [
         {
             type: "multi-select",
             text: "Select all **Luxury** brands from Marriott:",
@@ -485,11 +487,36 @@ function generateQuestions(count = 10) {
             options: ["Westin", "Hilton", "Sheraton", "Hyatt", "Renaissance", "InterContinental"],
             correctAnswers: [1, 3, 5],
             timeLimit: 20
+        },
+        {
+            type: "multi-select",
+            text: "Select all **Extended Stay** brands:",
+            options: ["Residence Inn", "Courtyard", "TownePlace Suites", "Moxy", "Element", "Sheraton"],
+            correctAnswers: [0, 2, 4],
+            timeLimit: 20
         }
     ];
 
-    const shuffled = allQuestions.sort(() => Math.random() - 0.5);
-    const selected = shuffled.slice(0, count);
+    // Separate regular and multi-select questions
+    const shuffledRegular = allQuestions.sort(() => Math.random() - 0.5);
+    const shuffledMultiSelect = multiSelectQuestions.sort(() => Math.random() - 0.5);
+
+    let selected = [];
+
+    // Ensure at least 1 multi-select question if count >= 3
+    if (count >= 3) {
+        // Add 1 multi-select question
+        selected.push(shuffledMultiSelect[0]);
+        // Fill the rest with regular questions
+        const remainingCount = count - 1;
+        selected = selected.concat(shuffledRegular.slice(0, remainingCount));
+    } else {
+        // For very short games, just use regular questions
+        selected = shuffledRegular.slice(0, count);
+    }
+
+    // Shuffle the final selection so multi-select isn't always in the same position
+    selected = selected.sort(() => Math.random() - 0.5);
 
     return selected.map(q => {
         const withHighlight = {
@@ -741,8 +768,13 @@ io.on('connection', (socket) => {
 
         io.to(room.hostId).emit('player_answered', { playerId: socket.id });
 
+        // Broadcast answer progress to all players
+        const answeredCount = Object.keys(room.answers).length;
+        const totalPlayers = room.players.length;
+        io.to(roomCode).emit('answer_progress', { answeredCount, totalPlayers });
+
         // Auto-trigger time_up if all players answered
-        if (Object.keys(room.answers).length === room.players.length) {
+        if (answeredCount === totalPlayers) {
             console.log(`All players answered for room ${roomCode}`);
             setTimeout(() => {
                 if (room.gameState === 'QUESTION') {

@@ -62,6 +62,8 @@ function PlayerContent() {
     const [leaderboard, setLeaderboard] = useState([]); // Intermediate leaderboard
     const [correctAnswerText, setCorrectAnswerText] = useState(''); // Correct answer display
     const [finalLeaderboard, setFinalLeaderboard] = useState([]); // Final podium
+    const [answeredCount, setAnsweredCount] = useState(0); // Number of players who answered
+    const [totalPlayers, setTotalPlayers] = useState(0); // Total players in game
 
     // Auto-fill room code from URL parameter
     useEffect(() => {
@@ -88,6 +90,12 @@ function PlayerContent() {
             setGameState('QUESTION');
             setLastResult(null);
             setSelectedAnswers([]); // Reset selections
+            setAnsweredCount(0); // Reset answer count for new question
+        });
+
+        socket.on('answer_progress', ({ answeredCount, totalPlayers }) => {
+            setAnsweredCount(answeredCount);
+            setTotalPlayers(totalPlayers);
         });
 
         socket.on('question_result', (result) => {
@@ -124,6 +132,7 @@ function PlayerContent() {
             socket.off('lobby_update');
             socket.off('game_started');
             socket.off('new_question');
+            socket.off('answer_progress');
             socket.off('question_result');
             socket.off('question_ended');
             socket.off('game_over');
@@ -274,12 +283,31 @@ function PlayerContent() {
                                     </div>
                                 </div>
                             ) : (
-                                // Loading spinner
+                                // Loading spinner or answer progress
                                 <>
                                     <div className="w-12 h-12 border-4 border-marriott border-t-transparent rounded-full animate-spin" />
-                                    <div className="text-xl font-bold text-gray-400 animate-pulse">
-                                        {lastResult ? "Waiting for next question..." : "Get Ready!"}
-                                    </div>
+                                    {answeredCount > 0 && totalPlayers > 0 ? (
+                                        <div className="space-y-3">
+                                            <div className="text-2xl font-bold text-marriott">
+                                                {answeredCount}/{totalPlayers} answered
+                                            </div>
+                                            <div className="w-64 h-3 bg-gray-700 rounded-full overflow-hidden">
+                                                <motion.div
+                                                    initial={{ width: 0 }}
+                                                    animate={{ width: `${(answeredCount / totalPlayers) * 100}%` }}
+                                                    transition={{ duration: 0.3 }}
+                                                    className="h-full bg-marriott"
+                                                />
+                                            </div>
+                                            <div className="text-sm text-gray-400">
+                                                Waiting for others...
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-xl font-bold text-gray-400 animate-pulse">
+                                            {lastResult ? "Waiting for next question..." : "Get Ready!"}
+                                        </div>
+                                    )}
                                 </>
                             )}
                         </motion.div>
