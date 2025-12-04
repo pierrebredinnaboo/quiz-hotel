@@ -412,7 +412,7 @@ Multi-select structure: [{ "id": 2, "type": "multi-select", "text": "Select all.
                     text: highlightBrands(q.text),
                     options: cleanedOptions,
                     correctAnswer: correctAnswerIndex,
-                    timeLimit: q.timeLimit || 12
+                    timeLimit: q.timeLimit || 15
                 };
             }
 
@@ -522,7 +522,7 @@ function generateQuestions(count = 10) {
         const withHighlight = {
             ...q,
             text: highlightBrands(q.text),
-            timeLimit: q.timeLimit || 12
+            timeLimit: q.timeLimit || 15
         };
         // Shuffle options for randomization
         return shuffleOptions(withHighlight);
@@ -809,9 +809,16 @@ io.on('connection', (socket) => {
             let isCorrect = false;
             let correctCount = 0;
             let totalCorrect = 0;
+            let streakBonus = 0;
+
+            // New scoring constants
+            const MAX_SCORE = 100;
+            const MIN_SCORE = 50;
+            const SAFE_ZONE = 3.0; // seconds
+            const DECAY_RATE = 4.17; // points per second after safe zone
 
             if (isMultiSelect) {
-                // Multi-select scoring: 1 point per correct selection
+                // Multi-select scoring: proportional to correct selections
                 const correctAnswers = currentQuestion.correctAnswers;
                 const selectedAnswers = playerAnswer?.answer || [];
 
@@ -832,29 +839,64 @@ io.on('connection', (socket) => {
                         }
                     });
 
-                    // Award points (minimum 0)
-                    pointsEarned = Math.max(0, correctCount);
-                    player.score += pointsEarned;
+                    // Calculate base score proportionally
+                    const correctRatio = Math.max(0, correctCount) / totalCorrect;
+
+                    if (correctRatio > 0 && playerAnswer) {
+                        const timeTaken = playerAnswer.timeTaken;
+                        let baseScore;
+
+                        if (timeTaken <= SAFE_ZONE) {
+                            baseScore = MAX_SCORE;
+                        } else {
+                            baseScore = Math.round(MAX_SCORE - ((timeTaken - SAFE_ZONE) * DECAY_RATE));
+                            baseScore = Math.max(baseScore, MIN_SCORE);
+                        }
+
+                        pointsEarned = Math.round(baseScore * correctRatio);
+                    }
 
                     // Full correct = streak continues, otherwise reset
                     if (correctCount === totalCorrect && selectedAnswers.length === totalCorrect) {
                         player.streak += 1;
                         isCorrect = true;
+
+                        // Apply streak bonus if streak >= 3
+                        if (player.streak >= 3) {
+                            streakBonus = 30;
+                            pointsEarned += streakBonus;
+                        }
                     } else {
                         player.streak = 0;
                     }
+
+                    player.score += pointsEarned;
                 }
             } else {
-                // Standard single-answer scoring
+                // Standard single-answer scoring with new 0-100 formula
                 const correctAnswer = currentQuestion.correctAnswer;
 
                 if (playerAnswer && playerAnswer.answer === correctAnswer) {
-                    const basePoints = 10;
-                    const streakBonus = player.streak * 5;
-                    pointsEarned = basePoints + streakBonus;
-                    player.score += pointsEarned;
+                    const timeTaken = playerAnswer.timeTaken;
+
+                    // Calculate base score with linear decay
+                    if (timeTaken <= SAFE_ZONE) {
+                        pointsEarned = MAX_SCORE;
+                    } else {
+                        pointsEarned = Math.round(MAX_SCORE - ((timeTaken - SAFE_ZONE) * DECAY_RATE));
+                        pointsEarned = Math.max(pointsEarned, MIN_SCORE);
+                    }
+
                     player.streak += 1;
                     isCorrect = true;
+
+                    // Apply streak bonus if streak >= 3
+                    if (player.streak >= 3) {
+                        streakBonus = 30;
+                        pointsEarned += streakBonus;
+                    }
+
+                    player.score += pointsEarned;
                 } else {
                     player.streak = 0;
                 }
@@ -869,6 +911,7 @@ io.on('connection', (socket) => {
                     points: pointsEarned,
                     score: player.score,
                     streak: player.streak,
+                    streakBonus: streakBonus,
                     correctAnswers: currentQuestion.correctAnswers,
                     correctCount: correctCount,
                     totalCorrect: totalCorrect,
@@ -880,6 +923,7 @@ io.on('connection', (socket) => {
                     points: pointsEarned,
                     score: player.score,
                     streak: player.streak,
+                    streakBonus: streakBonus,
                     correctAnswer: currentQuestion.options[currentQuestion.correctAnswer]
                 });
             }
