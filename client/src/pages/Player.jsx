@@ -110,13 +110,11 @@ function PlayerContent() {
             }
             setCorrectAnswerText(correctAnswerText);
             // Update current question with correct answers for display
-            if (currentQuestion) {
-                setCurrentQuestion(prev => ({
-                    ...prev,
-                    correctAnswers: correctAnswers,
-                    type: type
-                }));
-            }
+            setCurrentQuestion(prev => ({
+                ...prev,
+                correctAnswers: correctAnswers,
+                type: type
+            }));
             setGameState('LEADERBOARD');
         });
 
@@ -492,35 +490,96 @@ function PlayerContent() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             className="text-center w-full"
+                            onAnimationComplete={() => {
+                                // Play drumroll sound
+                                const audio = new Audio('/assets/sounds/drumroll.mp3');
+                                audio.volume = 0.5;
+                                audio.play().catch(e => console.log("Audio play failed:", e));
+                            }}
                         >
                             <h1 className="text-5xl font-black mb-12">🏆 Final Results 🏆</h1>
-                            <LayoutGroup>
-                                <div className="space-y-4 max-w-3xl mx-auto mb-12">
-                                    <AnimatePresence>
-                                        {Array.isArray(finalLeaderboard) && finalLeaderboard.map((p, i) => (
-                                            <motion.div
-                                                layout
-                                                key={p.id}
-                                                initial={{ opacity: 0, scale: 0.8 }}
-                                                animate={{ opacity: 1, scale: 1 }}
-                                                transition={{ delay: i * 0.2, type: "spring" }}
-                                                className={`p-6 rounded-2xl flex justify-between items-center text-2xl font-bold shadow-2xl ${i === 0 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-black scale-110' :
-                                                    i === 1 ? 'bg-gradient-to-r from-gray-300 to-gray-400 text-black' :
-                                                        i === 2 ? 'bg-gradient-to-r from-orange-400 to-orange-600 text-black' :
-                                                            'bg-gray-800 text-white'
-                                                    }`}
-                                            >
-                                                <div className="flex items-center gap-6">
-                                                    <span className="text-4xl">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}</span>
-                                                    <span className="text-3xl">{p.avatar || '👤'}</span>
-                                                    <span>{p.nickname}</span>
-                                                </div>
-                                                <span className="text-3xl font-black">{p.score} pts</span>
-                                            </motion.div>
-                                        ))}
-                                    </AnimatePresence>
-                                </div>
-                            </LayoutGroup>
+
+                            {/* Animated Podium */}
+                            <motion.div
+                                className="flex items-end justify-center gap-4 mb-8 h-[400px]"
+                                animate={{ x: [-5, 5, -5, 5, 0] }}
+                                transition={{ duration: 0.5, delay: 0.2 }}
+                            >
+                                {/* 2nd Place */}
+                                {Array.isArray(finalLeaderboard) && finalLeaderboard[1] && (
+                                    <motion.div
+                                        initial={{ y: 200, opacity: 0 }}
+                                        animate={{ y: 0, opacity: 1 }}
+                                        transition={{ delay: 2, type: 'spring', damping: 12 }}
+                                        className="flex flex-col items-center z-10"
+                                    >
+                                        <motion.div
+                                            animate={{ y: [0, -10, 0] }}
+                                            transition={{ repeat: Infinity, duration: 2, delay: 1 }}
+                                            className="text-4xl mb-2"
+                                        >
+                                            {finalLeaderboard[1].avatar || '👤'}
+                                        </motion.div>
+                                        <div className="text-xl font-bold mb-1">{finalLeaderboard[1].nickname}</div>
+                                        <div className="text-lg text-gray-400 mb-2">{finalLeaderboard[1].score} pts</div>
+                                        <div className="w-32 h-48 bg-gradient-to-t from-gray-600 to-gray-500 rounded-t-2xl flex items-center justify-center text-4xl border-4 border-gray-400 shadow-xl">
+                                            🥈
+                                        </div>
+                                    </motion.div>
+                                )}
+
+                                {/* 1st Place */}
+                                {Array.isArray(finalLeaderboard) && finalLeaderboard[0] && (
+                                    <motion.div
+                                        initial={{ y: 200, opacity: 0 }}
+                                        animate={{ y: 0, opacity: 1 }}
+                                        transition={{ delay: 4, type: 'spring', damping: 12 }}
+                                        className="flex flex-col items-center z-20 -mx-2 mb-4"
+                                    >
+                                        <motion.div
+                                            animate={{
+                                                y: [0, -15, 0],
+                                                rotate: [0, 5, -5, 0]
+                                            }}
+                                            transition={{ repeat: Infinity, duration: 2, delay: 1.5 }}
+                                            className="text-6xl mb-4 relative"
+                                        >
+                                            <span className="absolute -top-8 left-1/2 -translate-x-1/2 text-4xl animate-bounce">👑</span>
+                                            {finalLeaderboard[0].avatar || '👤'}
+                                        </motion.div>
+                                        <div className="text-2xl font-black mb-1 text-yellow-300">{finalLeaderboard[0].nickname}</div>
+                                        <div className="text-xl text-white font-bold mb-4 bg-marriott px-4 py-1 rounded-full shadow-lg">{finalLeaderboard[0].score} pts</div>
+                                        <div className="w-40 h-64 bg-gradient-to-t from-yellow-600 to-yellow-400 rounded-t-2xl flex items-center justify-center text-6xl border-4 border-yellow-300 shadow-2xl relative overflow-hidden">
+                                            <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                                            🏆
+                                        </div>
+                                    </motion.div>
+                                )}
+
+                                {/* 3rd Place */}
+                                {Array.isArray(finalLeaderboard) && finalLeaderboard[2] && (
+                                    <motion.div
+                                        initial={{ y: 200, opacity: 0 }}
+                                        animate={{ y: 0, opacity: 1 }}
+                                        transition={{ delay: 0.5, type: 'spring', damping: 12 }}
+                                        className="flex flex-col items-center z-0"
+                                    >
+                                        <motion.div
+                                            animate={{ y: [0, -8, 0] }}
+                                            transition={{ repeat: Infinity, duration: 2, delay: 0.5 }}
+                                            className="text-3xl mb-2"
+                                        >
+                                            {finalLeaderboard[2].avatar || '👤'}
+                                        </motion.div>
+                                        <div className="text-lg font-bold mb-1">{finalLeaderboard[2].nickname}</div>
+                                        <div className="text-base text-gray-400 mb-2">{finalLeaderboard[2].score} pts</div>
+                                        <div className="w-32 h-32 bg-gradient-to-t from-orange-800 to-orange-600 rounded-t-2xl flex items-center justify-center text-3xl border-4 border-orange-500 shadow-xl">
+                                            🥉
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </motion.div>
+
                             <Button
                                 onClick={() => window.location.reload()}
                                 className="mt-8 w-full max-w-md py-4 text-lg"
