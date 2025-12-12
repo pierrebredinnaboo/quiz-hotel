@@ -7,7 +7,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-001" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 // Import hotel groups data
 const { hotelGroups } = require('./brandsData.js');
@@ -311,7 +311,7 @@ Multi-select structure: [{ "id": 2, "type": "multi-select", "text": "Select all.
         console.log('🤖 Calling Gemini AI via REST API...');
 
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-001:generateContent?key=${process.env.GEMINI_API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
             {
                 method: 'POST',
                 headers: {
