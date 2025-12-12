@@ -594,7 +594,9 @@ io.on('connection', (socket) => {
 
     // Get multiplayer leaderboard (returns game sessions)
     socket.on('get_multiplayer_leaderboard', (callback) => {
-        callback(multiplayerGames);
+        // Return games in reverse chronological order (most recent first)
+        const sortedGames = [...multiplayerGames].reverse();
+        callback(sortedGames);
     });
 
     // Get global leaderboard (legacy - returns solo)
@@ -977,6 +979,7 @@ io.on('connection', (socket) => {
                 // Save the entire game session
                 const gameSession = {
                     id: `game_${Date.now()}`,
+                    roomCode: roomCode, // Add room code for display
                     date: new Date(),
                     players: finalLeaderboard.map(p => ({
                         nickname: p.nickname,
@@ -987,7 +990,7 @@ io.on('connection', (socket) => {
                     questionCount: room.questions.length
                 };
                 multiplayerGames.push(gameSession);
-                console.log(`📊 Saved multiplayer game session: ${gameSession.id}`);
+                console.log(`📊 Saved multiplayer game session: ${gameSession.id} (Room: ${roomCode})`);
             }
             room.gameState = 'FINISHED';
         } else {

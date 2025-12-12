@@ -117,7 +117,9 @@ export default function Leaderboard() {
                                             className="w-full p-6 flex justify-between items-center hover:bg-gray-750 transition-colors text-left"
                                         >
                                             <div className="flex items-center gap-4">
-                                                <span className="text-2xl font-bold text-marriott">Game #{multiplayerScores.length - i}</span>
+                                                <span className="text-2xl font-bold text-marriott">
+                                                    {game.roomCode ? `Room ${game.roomCode}` : `Game #${multiplayerScores.length - i}`}
+                                                </span>
                                                 <span className="text-gray-400">•</span>
                                                 <span className="text-gray-400">{new Date(game.date).toLocaleDateString()}</span>
                                                 <span className="text-gray-400">•</span>
